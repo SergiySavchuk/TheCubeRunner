@@ -1,7 +1,7 @@
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 
+//Class for controlling the player
 public class PlayerManager : MonoBehaviour
 {
     [SerializeField] private GameManager gameManager;
@@ -9,9 +9,22 @@ public class PlayerManager : MonoBehaviour
 
     [SerializeField] private Animator animator;
 
-    private int playersLane = 3;
+    [SerializeField] private float horizontalMovementSpeed = 10f;
+    [SerializeField] private float verticalMovementSpeed = 20f;
 
-    private Stack<GameObject> playersCubes;
+    [SerializeField] private LayerMask cubeMask;
+
+    private float step;
+    private int targetLane = 3;
+    private int curentLane = 3;
+
+    //For reseting player position at the restaring of the game
+    private Vector3 startPosition;
+
+    private Vector3 jumpPosition = Vector3.zero;
+    private bool animatingJump;
+
+    private Stack<GameObject> playersCubes = new();
 
     private int cubesAdding = -1;
 
@@ -22,36 +35,98 @@ public class PlayerManager : MonoBehaviour
 
     private void Awake()
     {
-        playersCubes = new Stack<GameObject>();
+        step = Screen.width / LevelSpawner.maximumLanes;
+
+        //For reseting player position at the restaring of the game
+        startPosition = transform.position;
+    }
+
+    private void OnEnable()
+    {
+        gameManager.OnGameStart += ResetPosiion;
+    }
+
+    private void OnDisable()
+    {
+        gameManager.OnGameStart -= ResetPosiion;
+    }
+
+    //For reseting player position at the restaring of the game
+    private void ResetPosiion()
+    {
+        transform.position = startPosition;
+        targetLane = curentLane = 3;
     }
 
     private void Update()
     {
-        if (Input.GetKeyDown(KeyCode.RightArrow))
-            MovePlayer(true);
-        else if (Input.GetKeyDown(KeyCode.LeftArrow))
-            MovePlayer(false);
-    }
-
-    public void MovePlayer(bool right)
-    {
-        if (right && playersLane == 5) return;
-        if (!right && playersLane == 1) return;
-
         if (gameManager.Pause) return;
 
-        int sign = right ? 1 : -1;
+        //For more smoothing jump
+        if (jumpPosition != Vector3.zero)
+        {
+            transform.position = Vector3.Lerp(transform.position, jumpPosition, Time.deltaTime * verticalMovementSpeed);
 
-        if (Physics.CheckBox(new Vector3(transform.position.x, 1.5f, transform.position.z - sign * 2), new Vector3(1.5f, 0.5f, 0.5f)))
+            if (transform.position == jumpPosition)
+                jumpPosition = Vector3.zero;
+
             return;
+        }
 
-        playersLane += sign;
+        animatingJump = false;
 
-        transform.position -= new Vector3(0, 0, 2 * sign);
+        float touchPosition = 0f;
+
+        //Counting what lane player is touching
+#if UNITY_EDITOR
+        if (Input.GetMouseButton(0))
+        {
+            touchPosition = Mathf.Clamp(Input.mousePosition.x, 0 , Screen.width - 1);
+#elif UNITY_ANDROID
+        if (Input.touchCount > 0)
+        {
+            touchPosition = Input.GetTouch(0).position.x;
+#endif
+            targetLane = (int)(touchPosition / step) + 1;
+        }
+
+        //Counting coordinate of the lane by formula y = a * x + b
+        float coordinateOfTargetLane = 6f - 2f * targetLane;
+
+        if (transform.position.z != coordinateOfTargetLane)
+        {
+            Vector3 targetPosition = transform.position;
+            targetPosition.z = coordinateOfTargetLane;
+
+            curentLane = GetCurrentLane();
+
+            int GetCurrentLane()
+            {
+                float curentPosition = transform.position.z;
+
+                if (curentPosition > 3) return 1;
+                if (curentPosition > 1) return 2;
+                if (curentPosition > -1) return 3;
+                if (curentPosition > -3) return 4;
+                return 5;
+            }
+
+            float coordinateOfCurentLane = 6f - 2f * curentLane;
+
+            int sign = targetLane < curentLane ? 1 : -1;
+            //Checking if player will collide with cubes if he moving the way he wants (cubes of the player have default mask)
+            if (Physics.CheckBox(new Vector3(transform.position.x, 1.5f, coordinateOfCurentLane + sign * 2), new Vector3(2.5f, 0.5f, 0.5f), Quaternion.identity, cubeMask))
+                targetPosition.z = coordinateOfCurentLane;
+
+            transform.position = Vector3.Lerp(transform.position, targetPosition, Time.deltaTime * horizontalMovementSpeed);
+        }
     }
 
     private void OnTriggerEnter(Collider other)
-    {        
+    {
+        //Cheking only cubes that is on players lane
+        if (other.transform.position.z != (6f - 2f * curentLane)) return;
+
         if (other.CompareTag("GoodCube"))
         {
             Cube otherCube = other.GetComponent<Cube>();
@@ -62,28 +137,41 @@ public class PlayerManager : MonoBehaviour
 
             cubesAdding++;
 
-            transform.position += new Vector3(0, 2);
+            //For smooth jumping
+            jumpPosition = (jumpPosition == Vector3.zero ? transform.position : jumpPosition) + transform.position + new Vector3(0, cubeSize);
 
+            //Start to check if cube's centre is under player's centre 
             otherCube.StartCheckingPlayerPosiotion(transform.position.x, TakeCube);
+            //Setting cube's mask as a default so physics check wont count it
+            other.gameObject.layer = 0;
         }
         else if (other.CompareTag("BadCube"))
         {
+            if (!animatingJump)
+            {
+                animator.SetTrigger(jumpHash);
+                animatingJump = true;
+            }
+
+            other.gameObject.SetActive(false);
+
             if (playersCubes.Count == 0)
             {
                 gameManager.GameOver();
+                return;
             }
-            else
-            {
-                animator.SetTrigger(jumpHash);
 
-                other.gameObject.SetActive(false);
-                playersCubes.Pop().SetActive(false);
+            playersCubes.Pop().SetActive(false);
 
-                transform.position -= new Vector3(0, 2);
-            }
+            //For smooth jumping
+            jumpPosition = (jumpPosition == Vector3.zero ? transform.position : jumpPosition) - new Vector3(0, cubeSize);
+
+            if (playersCubes.Count == 0)
+                gameManager.GameOver();
         }
     }
 
+    //Callback to take cube
     private void TakeCube(Transform cube)
     {
         playersCubes.Push(cube.gameObject);

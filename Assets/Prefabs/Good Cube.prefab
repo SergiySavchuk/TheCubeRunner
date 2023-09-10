@@ -13,7 +13,7 @@ GameObject:
   - component: {fileID: 3201704123440644879}
   - component: {fileID: 3201704123440644878}
   - component: {fileID: 6176021819218391841}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Good Cube
   m_TagString: GoodCube
   m_Icon: {fileID: 0}

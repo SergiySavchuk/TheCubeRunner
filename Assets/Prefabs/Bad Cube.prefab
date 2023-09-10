@@ -13,7 +13,7 @@ GameObject:
   - component: {fileID: 3201704123440644879}
   - component: {fileID: 3201704123440644878}
   - component: {fileID: -5913037876770922653}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Bad Cube
   m_TagString: BadCube
   m_Icon: {fileID: 0}

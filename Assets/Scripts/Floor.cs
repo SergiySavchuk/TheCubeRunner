@@ -1,31 +1,36 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UIElements;
 
+//Class for controlling levels and gameObject that moves cubes
 public class Floor : MonoBehaviour
 {
-    public float Position => transform.position.x;
-    public float Length => transform.localScale.x;
+    public bool IsOutOfBounds => transform.position.x < -LevelLength;
+    public float VerticalPosition => transform.position.y;
+    public float GameObjectLength => transform.localScale.x;
+
+    public float LevelLength { get; private set; }
 
     private List<Cube> cubes = new();
 
-    public void SetCubes(List<Cube> cubes)
+    public void SetValues(List<Cube> cubes, float levelLength)
     {
         this.cubes = cubes;
+        LevelLength = levelLength;
     }
 
+    //For removing the cube that player took
     public void RemoveCube(Cube cube)
     {
         cubes.Remove(cube);
     }
 
+    //For removing all cubes
     public void ReturnCubesToParents()
     {
         foreach (var cube in cubes)
             cube.ReturnToTrueParent();
 
-        cubes = new();
+        cubes.Clear();
     }
 
     public void Move(Vector3 moveTo)

@@ -1,8 +1,9 @@
-using System.Collections;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using UnityEngine;
 
+//Main script
 public class GameManager : MonoBehaviour
 {
     [SerializeField] private LevelSpawner levelSpawner;
@@ -14,12 +15,15 @@ public class GameManager : MonoBehaviour
 
     [SerializeField] private GameObject gameOverUI;
 
-    private Queue<Floor> floorsQueue;
+    private Queue<Floor> floorsQueue = new();
 
     private Floor floorToCheck;
 
     private bool pause = true;
     public bool Pause => pause;
+
+    //For reseting player position at the restarting of the game
+    public Action OnGameStart;
 
     private void Start()
     {
@@ -28,23 +32,30 @@ public class GameManager : MonoBehaviour
 
     private void LoadStartingLevls()
     {
-        floorsQueue = new Queue<Floor>();
+        floorsQueue.Clear();
 
         floorToCheck = floors[0];
 
-        floorToCheck.transform.position = Vector3.zero + new Vector3(floorToCheck.Length / 2f, 0, 0);
-        levelSpawner.SpawnLevel(floorToCheck);
-        floorsQueue.Enqueue(floorToCheck);
+        float levelsLenth = 0;
 
-        for (int i = 1; i < floors.Length; i++)
+        for (int i = 0; i < floors.Length - 1; i++)
         {
-            floors[i].transform.position = new Vector3(floorToCheck.Length * i + floorToCheck.Length / 2f, 0);
             levelSpawner.SpawnLevel(floors[i]);
+            floors[i].transform.position = new Vector3(levelsLenth + floors[i].GameObjectLength / 2f, 0);
             floorsQueue.Enqueue(floors[i]);
-        }       
+
+            if (i < floors.Length - 2)
+                levelsLenth += floors[i].LevelLength;
+        }
+
+        //Last level is moving up to hide how it's appearing 
+        levelSpawner.SpawnLevel(floors[^1]);
+        floors[^1].transform.position = new Vector3(levelsLenth + floors[^1].GameObjectLength / 2f, -floors[^2].LevelLength);
+        floorsQueue.Enqueue(floors[^1]);
     }
 
-    public void StartGame() // for UI button
+    //For UI button "Tap to play"
+    public void StartGame() 
     {
         pause = false;
     }
@@ -53,25 +64,39 @@ public class GameManager : MonoBehaviour
     {
         if (pause) return;
 
+        //Moving floors. The last one moves up
         foreach (var item in floorsQueue)
+            item.Move(floorSpeed * Time.deltaTime * (item.VerticalPosition < 0 ? Vector3.up : Vector3.left));
+
+        //Checking if position of the first floor is beyond camera. If it is true than creating new level
+        if (floorToCheck.IsOutOfBounds)
+            CreateNewLevel();
+    }
+
+    private void CreateNewLevel()
+    {
+        Floor oldFloor = floorsQueue.Dequeue();
+
+        oldFloor.ReturnCubesToParents();
+
+        floorToCheck = floorsQueue.Peek();
+
+        float levelsLenth = 0f;
+        float lastLevelLenth = 0f;
+
+        foreach (var floor in floorsQueue)
         {
-            item.Move(floorSpeed * Time.deltaTime * Vector3.left);
+            levelsLenth += floor.LevelLength;
+            lastLevelLenth = floor.LevelLength;
         }
 
-        if (floorToCheck.Position < -floorToCheck.Length)
-        {
-            Floor oldFloor = floorsQueue.Dequeue();
+        levelsLenth -= lastLevelLenth;
 
-            oldFloor.ReturnCubesToParents();
+        oldFloor.transform.position = new Vector3(levelsLenth, -lastLevelLenth);
 
-            floorToCheck = floorsQueue.Peek();
+        levelSpawner.SpawnLevel(oldFloor);
 
-            oldFloor.transform.position = new Vector3(floorToCheck.Length * (floors.Length - 1), 0);
-
-            levelSpawner.SpawnLevel(oldFloor);
-
-            floorsQueue.Enqueue(oldFloor);
-        }
+        floorsQueue.Enqueue(oldFloor);
     }
 
     public void GameOver()
@@ -90,5 +115,8 @@ public class GameManager : MonoBehaviour
         LoadStartingLevls();
 
         pause = false;
+
+        //For reseting player position at the restarting of the game
+        OnGameStart?.Invoke();
     }
 }

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+//Class for collecting cubes
 public class CubeSpawner : MonoBehaviour
 {
     [SerializeField] private Transform goodCubesParent;
@@ -14,6 +15,7 @@ public class CubeSpawner : MonoBehaviour
 
     private int goodCubesQuantety, badCubesQuantety;
 
+    //Setting up queues
     private void Awake()
     {
         goodCubes = new Queue<GameObject>();
@@ -29,6 +31,7 @@ public class CubeSpawner : MonoBehaviour
         badCubesQuantety = badCubes.Count;
     }
 
+    //Giving or creating new object
     public GameObject GetCube(bool goodCube, Floor parentFloor)
     {
         Queue<GameObject> cubesToCheck = goodCube ? goodCubes : badCubes;
@@ -55,6 +58,7 @@ public class CubeSpawner : MonoBehaviour
         return returnValue;
     }
 
+    //Returning cube objects
     public void ReturnToParent(GameObject childToReturn, bool goodChild)
     {
         if (goodChild)

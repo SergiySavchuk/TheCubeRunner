@@ -1,12 +1,13 @@
 using System.Collections;
-using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 
+//Class for representatin how many cubes player get
 public class CubeCounterController : MonoBehaviour
 {
     [SerializeField] private Animator cubeCounterAnimator;
     [SerializeField] private TextMeshProUGUI cubeCounterText;
+    [SerializeField] private ParticleSystem puffEffect;
 
     private int cubeCounter = 0;
 
@@ -21,9 +22,12 @@ public class CubeCounterController : MonoBehaviour
         StartCoroutine(StartAnimation());
     }
 
+    //Waiting for the end of the frame so all cubes that player get at one row will be shown
     private IEnumerator StartAnimation() 
     {
         yield return null;
+
+        puffEffect.Play();
 
         cubeCounter = 0;
 

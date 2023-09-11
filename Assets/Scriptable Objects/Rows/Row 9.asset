@@ -10,8 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 48e3242fd3736ef469c400075fb9bc17, type: 3}
-  m_Name: Level 0
+  m_Name: Row 9
   m_EditorClassIdentifier: 
-  cubePrefab: {fileID: 3201704123440644864, guid: 1763d556cfdec444b9a6d71f78684256, type: 3}
-  cubeSize: 2
-  cubesInLanes: 0300000002000000000000000500000001000000
+  goodCube: 1
+  cubesInLanes: 0100000001000000020000000300000001000000

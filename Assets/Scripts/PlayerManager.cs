@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 
 //Class for controlling the player
@@ -20,6 +21,8 @@ public class PlayerManager : MonoBehaviour
 
     //For reseting player position at the restaring of the game
     private Vector3 startPosition;
+    //For skipping first frame after player touched button "Try again"
+    private bool skipframeOnRestart = false;
 
     private Vector3 jumpPosition = Vector3.zero;
     private bool animatingJump;
@@ -54,13 +57,22 @@ public class PlayerManager : MonoBehaviour
     //For reseting player position at the restaring of the game
     private void ResetPosiion()
     {
+        jumpPosition = Vector3.zero;
         transform.position = startPosition;
         targetLane = curentLane = 3;
+        skipframeOnRestart = true;
     }
 
     private void Update()
     {
         if (gameManager.Pause) return;
+
+        //For skipping first frame after player touched button "Try again"
+        if (skipframeOnRestart)
+        {
+            skipframeOnRestart = false;
+            return;
+        }
 
         //For more smoothing jump
         if (jumpPosition != Vector3.zero)
@@ -131,15 +143,15 @@ public class PlayerManager : MonoBehaviour
         {
             Cube otherCube = other.GetComponent<Cube>();
 
-            if (otherCube == null || playersCubes.Contains(other.gameObject)) return;
+            //Checking if collider "other" has component "Cube" and if cube layer mask contains layer of collider "other" gameObject
+            if (otherCube == null || (cubeMask.value & (1 << other.gameObject.layer)) == 0) return;
 
             animator.SetTrigger(jumpHash);
 
             cubesAdding++;
 
             //For smooth jumping
-            jumpPosition = (jumpPosition == Vector3.zero ? transform.position : jumpPosition) + transform.position + new Vector3(0, cubeSize);
-
+            jumpPosition = (jumpPosition == Vector3.zero ? transform.position : jumpPosition) + new Vector3(0, cubeSize);
             //Start to check if cube's centre is under player's centre 
             otherCube.StartCheckingPlayerPosiotion(transform.position.x, TakeCube);
             //Setting cube's mask as a default so physics check wont count it
@@ -147,6 +159,7 @@ public class PlayerManager : MonoBehaviour
         }
         else if (other.CompareTag("BadCube"))
         {
+            //When player hit more than one bad cube animation should play once
             if (!animatingJump)
             {
                 animator.SetTrigger(jumpHash);
@@ -155,6 +168,7 @@ public class PlayerManager : MonoBehaviour
 
             other.gameObject.SetActive(false);
 
+            //If player hit bad cube before taking at least one good one
             if (playersCubes.Count == 0)
             {
                 gameManager.GameOver();
@@ -167,7 +181,10 @@ public class PlayerManager : MonoBehaviour
             jumpPosition = (jumpPosition == Vector3.zero ? transform.position : jumpPosition) - new Vector3(0, cubeSize);
 
             if (playersCubes.Count == 0)
+            {
+                transform.position = new Vector3(transform.position.x, startPosition.y, transform.position.z);
                 gameManager.GameOver();
+            }
         }
     }
 
